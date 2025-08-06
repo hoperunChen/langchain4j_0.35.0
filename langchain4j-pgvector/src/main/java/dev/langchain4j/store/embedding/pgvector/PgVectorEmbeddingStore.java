@@ -152,10 +152,12 @@ public class PgVectorEmbeddingStore implements EmbeddingStore<TextSegment> {
             if (dropTableFirst) {
                 statement.executeUpdate(String.format("DROP TABLE IF EXISTS %s", table));
             }
+            //update-begin---author:chenrui ---date:20250806  for：支持2000+维度向量,pgvector版本必须大于7.0------------
+            String vectorType = (dimension != null && dimension > 2000) ? "halfvec" : "vector";
             if (createTable) {
                 query = String.format("CREATE TABLE IF NOT EXISTS %s (embedding_id UUID PRIMARY KEY, " +
-                                "embedding vector(%s), text TEXT NULL, %s )",
-                        table, ensureGreaterThanZero(dimension, "dimension"),
+                                "embedding %s(%s), text TEXT NULL, %s )",
+                        table, vectorType, ensureGreaterThanZero(dimension, "dimension"),
                         metadataHandler.columnDefinitionsString());
                 statement.executeUpdate(query);
                 metadataHandler.createMetadataIndexes(statement, table);
@@ -164,9 +166,10 @@ public class PgVectorEmbeddingStore implements EmbeddingStore<TextSegment> {
                 final String indexName = table + "_ivfflat_index";
                 query = String.format(
                         "CREATE INDEX IF NOT EXISTS %s ON %s " +
-                                "USING ivfflat (embedding vector_cosine_ops) " +
+                                "USING ivfflat (embedding %s_cosine_ops) " +
                                 "WITH (lists = %s)",
-                        indexName, table, ensureGreaterThanZero(indexListSize, "indexListSize"));
+                        indexName, table, vectorType, ensureGreaterThanZero(indexListSize, "indexListSize"));
+                //update-end---author:chenrui ---date:20250806  for：支持2000+维度向量,pgvector版本必须大于7.0------------
                 statement.executeUpdate(query);
             }
         } catch (SQLException e) {
